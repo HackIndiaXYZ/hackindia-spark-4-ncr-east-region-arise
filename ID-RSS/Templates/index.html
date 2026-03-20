@@ -1387,10 +1387,13 @@ async function renderResults(rows, flds) {
         `<td><span style="background:#FEF6E4;color:#B8840A;padding:2px 8px;border-radius:4px;font-size:0.75rem;font-weight:600;">⚠️ Result not found</span></td>`
       ).join('');
     } else {
-      // Show normal values or dashes
+      // Show normal values or orange badges for missing fields
       cellsHtml += flds.map(f => {
         const v = row[f] || '—';
-        return `<td${v === '—' ? ' class="td-dash"' : ''}>${esc(v)}</td>`;
+        if (v === '—') {
+          return `<td><span style="background:#FEF6E4;color:#B8840A;padding:2px 8px;border-radius:4px;font-size:0.75rem;font-weight:600;">⚠️ ${esc(f)} Missing</span></td>`;
+        }
+        return `<td>${esc(v)}</td>`;
       }).join('');
     }
 
