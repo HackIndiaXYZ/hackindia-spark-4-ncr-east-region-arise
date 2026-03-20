@@ -788,15 +788,12 @@ footer a:hover { text-decoration: underline; }
         <div id="pane-files">
           <div class="dropzone" id="dz-files">
             <input type="file" id="fi-files" multiple
-              accept=".docx,.doc,.xlsx,.xls,.csv,.pdf,.pptx,.ppt,.txt,.odt,.ods,.odp">
+              accept=".docx,.txt">
             <div class="dz-icon">📂</div>
             <div class="dz-title">Drop files here or click to browse</div>
-            <div class="dz-sub">Supports all document types</div>
+            <div class="dz-sub">Supports document & spreadsheet formats</div>
             <div class="ftypes">
-              <span class="ftype">.docx</span><span class="ftype">.doc</span>
-              <span class="ftype">.xlsx</span><span class="ftype">.csv</span>
-              <span class="ftype">.txt</span><span class="ftype">.pptx</span>
-              <span class="ftype">.pdf</span><span class="ftype">.odt</span>
+              <span class="ftype">.docx</span><span class="ftype">.txt</span>
             </div>
           </div>
         </div>
@@ -924,12 +921,10 @@ let fields        = ['Name', 'Serial No.'];
 let extractedData = [];
 let activeFields  = [];
 const ICONS = {
-  docx:'📝', doc:'📝', xlsx:'📊', xls:'📊', csv:'📊',
-  pdf:'📋', pptx:'📑', ppt:'📑', txt:'📄',
-  odt:'📝', ods:'📊', odp:'📑'
+  docx:'📝', txt:'📄'
 };
 const MODS = ['JSZip','XLSX.js','Regex Engine','File API','Export Engine'];
-const SUPPORTED = ['docx','doc','xlsx','xls','csv','pdf','pptx','ppt','txt','odt','ods','odp'];
+const SUPPORTED = ['docx','txt'];
 
 /* ════════════════════════════
    INTRO — particle canvas + counter
@@ -1209,19 +1204,26 @@ async function runExtract() {
 
     try {
       const text = await readFile(file);
-      const row  = { file: file.name };
+      const row  = { file: file.name, status: 'success' };
       let found  = 0;
       for (const field of activeFields) {
         const val = extractField(text, field);
         row[field] = val;
         if (val !== '—') found++;
       }
-      row.confidence = activeFields.length ? found / activeFields.length : 0;
       row._text = text; // store for search
+      
+      // Check if all fields are missing
+      if (found === 0) {
+        row.status = 'no-data';
+      }
+      
       extractedData.push(row);
     } catch (err) {
-      const row = { file: file.name, confidence: 0, _text: '' };
+      // File type not supported or read error
+      const row = { file: file.name, status: 'unsupported' };
       activeFields.forEach(f => row[f] = '—');
+      row._text = '';
       extractedData.push(row);
     }
 
@@ -1243,12 +1245,12 @@ async function runExtract() {
 ════════════════════════════ */
 async function readFile(file) {
   const e = getExt(file.name);
-  if (['docx','odt'].includes(e))         return readDocx(file);
-  if (['xlsx','xls','ods'].includes(e))   return readXlsx(file);
-  if (['csv','txt'].includes(e))          return readText(file);
-  if (e === 'pdf')                         return readPdf(file);
-  if (['pptx','ppt','odp'].includes(e))   return readPptx(file);
-  return readText(file);
+  // Only support these formats
+  if (!['docx','txt'].includes(e)) {
+    throw new Error('File type not supported');
+  }
+  if (e === 'docx')                      return readDocx(file);
+  if (e === 'txt')                       return readText(file);
 }
 
 async function readDocx(file) {
@@ -1342,37 +1344,57 @@ async function renderResults(rows, flds) {
   // Build header
   document.getElementById('t-head').innerHTML =
     '<th>#</th><th>File</th>' +
-    flds.map(f => `<th>${esc(f)}</th>`).join('') +
-    '<th>Confidence</th>';
+    flds.map(f => `<th>${esc(f)}</th>`).join('');
 
   const tbody = document.getElementById('t-body');
   tbody.innerHTML = '';
 
   let full = 0, partial = 0, fail = 0;
 
+  let extracted = 0, incomplete = 0, unsupported = 0;
   for (let i = 0; i < rows.length; i++) {
-    const row  = rows[i];
-    const conf = parseFloat(row.confidence || 0);
+    const row = rows[i];
+    const status = row.status || 'success';
 
-    if (conf === 1)      full++;
-    else if (conf > 0)   partial++;
-    else                 fail++;
-
-    const bClass = conf === 1 ? 'b-ok' : conf > 0 ? 'b-part' : 'b-fail';
-    const bIcon  = conf === 1 ? '●'    : conf > 0 ? '◑'       : '○';
+    // Counters
+    if (status === 'unsupported') unsupported++;
+    else {
+      const allFieldsFound = flds.every(f => row[f] && row[f] !== '—');
+      if (allFieldsFound && status === 'success') extracted++;
+      else incomplete++;
+    }
 
     const tr = document.createElement('tr');
     // store for search filtering
     tr.dataset.idx = i;
+    tr.dataset.status = status;
 
-    tr.innerHTML =
-      `<td>${i + 1}</td>` +
-      `<td class="td-file">${esc(row.file)}</td>` +
-      flds.map(f => {
+    // Apply status styling to row
+    if (status === 'unsupported') tr.style.opacity = '0.6';
+    if (status === 'no-data') tr.style.backgroundColor = 'var(--rbg)';
+
+    let cellsHtml = `<td>${i + 1}</td>` +
+      `<td class="td-file">${esc(row.file)}</td>`;
+
+    if (status === 'unsupported') {
+      // Show red badge for all fields
+      cellsHtml += flds.map(() => 
+        `<td><span style="background:#fdecea;color:#c0392b;padding:2px 8px;border-radius:4px;font-size:0.75rem;font-weight:600;">📋 File type not supported</span></td>`
+      ).join('');
+    } else if (status === 'no-data') {
+      // Show orange badge for all fields
+      cellsHtml += flds.map(() => 
+        `<td><span style="background:#FEF6E4;color:#B8840A;padding:2px 8px;border-radius:4px;font-size:0.75rem;font-weight:600;">⚠️ Result not found</span></td>`
+      ).join('');
+    } else {
+      // Show normal values or dashes
+      cellsHtml += flds.map(f => {
         const v = row[f] || '—';
         return `<td${v === '—' ? ' class="td-dash"' : ''}>${esc(v)}</td>`;
-      }).join('') +
-      `<td><span class="badge ${bClass}">${bIcon} ${Math.round(conf * 100)}%</span></td>`;
+      }).join('');
+    }
+
+    tr.innerHTML = cellsHtml;
 
     tbody.appendChild(tr);
     await delay(32);
@@ -1380,8 +1402,8 @@ async function renderResults(rows, flds) {
 
     // live stat update
     document.getElementById('sv0').textContent = i + 1;
-    document.getElementById('sv1').textContent = full;
-    document.getElementById('sv2').textContent = partial + fail;
+    document.getElementById('sv1').textContent = extracted;
+    document.getElementById('sv2').textContent = incomplete + unsupported;
   }
 
   document.querySelectorAll('.stat-box').forEach(b => b.classList.add('anim'));
@@ -1453,22 +1475,18 @@ function dlExcel() {
   if (!extractedData.length) { toast('Nothing to export yet'); return; }
 
   const wb   = XLSX.utils.book_new();
-  const hdrs = ['#', 'File', ...activeFields, 'Confidence', 'Status'];
+  const hdrs = ['#', 'File', ...activeFields];
   const rows = extractedData.map((r, i) => {
-    const c = parseFloat(r.confidence || 0);
     return [
       i + 1, r.file,
-      ...activeFields.map(f => r[f] || '—'),
-      Math.round(c * 100) + '%',
-      c === 1 ? 'Complete' : c > 0 ? 'Partial' : 'Failed'
+      ...activeFields.map(f => r[f] || '—')
     ];
   });
 
   const ws = XLSX.utils.aoa_to_sheet([hdrs, ...rows]);
   ws['!cols'] = [
     {wch: 5}, {wch: 28},
-    ...activeFields.map(f => ({wch: Math.max(f.length + 4, 18)})),
-    {wch: 13}, {wch: 11}
+    ...activeFields.map(f => ({wch: Math.max(f.length + 4, 18)}))
   ];
   XLSX.utils.book_append_sheet(wb, ws, 'Extracted Data');
 
