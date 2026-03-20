@@ -94,4 +94,4 @@ if __name__ == "__main__":
         print(f"  confidence: {r['confidence']}")
 
     found = sum(1 for r in results if r["confidence"] == 1.0)
-    print(f"\n{found}/{len(results)} files fully extracted")
+    print(f"\n{found}/{len(results)} files fully extracted") 
