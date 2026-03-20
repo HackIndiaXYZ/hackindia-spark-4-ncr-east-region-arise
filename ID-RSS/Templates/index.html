@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ID-RSS - Intelligent Data Retriever & Structuring System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+            width: 100%;
+            padding: 40px;
+        }
+
+        h1 {
+            color: #1d9e75;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        input[type="text"],
+        input[type="number"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus,
+        input[type="number"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .fields-container {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 8px;
+        }
+
+        .field-item {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .field-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .field-item input {
+            flex: 1;
+        }
+
+        .btn-remove {
+            background: #ff6b6b;
+            color: white;
+            border: none;
+            padding: 10px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background 0.3s;
+        }
+
+        .btn-remove:hover {
+            background: #ee5a52;
+        }
+
+        .btn-add-field {
+            background: #4dabf7;
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            margin-top: 10px;
+            transition: background 0.3s;
+        }
+
+        .btn-add-field:hover {
+            background: #3596dd;
+        }
+
+        .btn-primary {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.3s, box-shadow 0.3s;
+            margin-top: 20px;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .results {
+            margin-top: 30px;
+            padding-top: 30px;
+            border-top: 2px solid #e0e0e0;
+            display: none;
+        }
+
+        .results.show {
+            display: block;
+        }
+
+        .results h2 {
+            color: #1d9e75;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        .result-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+            margin-bottom: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+        }
+
+        .result-table th {
+            background: #1d9e75;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+        }
+
+        .result-table td {
+            padding: 12px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .result-table tr:nth-child(even) {
+            background: #e1f5ee;
+        }
+
+        .result-table tr:hover {
+            background: #d0f0e8;
+        }
+
+        .confidence {
+            font-weight: 600;
+            color: #1d9e75;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-partial {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-failed {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .btn-export {
+            background: #51cf66;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            margin-top: 10px;
+            transition: background 0.3s;
+            width: 100%;
+        }
+
+        .btn-export:hover {
+            background: #43a047;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .spinner {
+            border: 3px solid #e0e0e0;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 12px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            display: none;
+        }
+
+        .error.show {
+            display: block;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 12px;
+            margin-top: 15px;
+            font-size: 13px;
+        }
+
+        .stat-box {
+            background: #f5f5f5;
+            padding: 12px;
+            border-radius: 4px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: #667eea;
+        }
+
+        .stat-label {
+            color: #666;
+            margin-top: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📄 ID-RSS</h1>
+        <p class="subtitle">Intelligent Data Retriever & Structuring System</p>
+
+        <form id="extractForm">
+            <div class="form-group">
+                <label for="folderPath">📁 Documents Folder Path</label>
+                <input
+                    type="text"
+                    id="folderPath"
+                    placeholder="e.g., demo_files or C:\path\to\documents"
+                    value="demo_files"
+                    required
+                >
+            </div>
+
+            <div class="form-group">
+                <label>🏷️ Fields to Extract</label>
+                <div class="fields-container" id="fieldsContainer">
+                    <div class="field-item">
+                        <input type="text" class="field-input" placeholder="e.g., Name" value="Name">
+                        <button type="button" class="btn-remove" onclick="removeField(this)">Remove</button>
+                    </div>
+                    <div class="field-item">
+                        <input type="text" class="field-input" placeholder="e.g., Serial No." value="Serial No.">
+                        <button type="button" class="btn-remove" onclick="removeField(this)">Remove</button>
+                    </div>
+                </div>
+                <button type="button" class="btn-add-field" onclick="addField()">+ Add Field</button>
+            </div>
+
+            <button type="submit" class="btn-primary">🚀 Extract Data</button>
+        </form>
+
+        <div class="error" id="error"></div>
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p style="margin-top: 10px; color: #666;">Processing documents...</p>
+        </div>
+
+        <div class="results" id="results">
+            <h2>✅ Extraction Results</h2>
+
+            <div class="stats" id="stats"></div>
+
+            <table class="result-table" id="resultsTable">
+                <thead>
+                    <tr id="tableHeader"></tr>
+                </thead>
+                <tbody id="tableBody"></tbody>
+            </table>
+
+            <button type="button" class="btn-export" onclick="downloadExcel()">📥 Download as Excel</button>
+        </div>
+    </div>
+
+    <script>
+        let extractedData = [];
+        let extractedFields = [];
+
+        function addField() {
+            const container = document.getElementById('fieldsContainer');
+            const fieldItem = document.createElement('div');
+            fieldItem.className = 'field-item';
+            fieldItem.innerHTML = `
+                <input type="text" class="field-input" placeholder="e.g., Email">
+                <button type="button" class="btn-remove" onclick="removeField(this)">Remove</button>
+            `;
+            container.appendChild(fieldItem);
+        }
+
+        function removeField(btn) {
+            btn.parentElement.remove();
+        }
+
+        document.getElementById('extractForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const folderPath = document.getElementById('folderPath').value.trim();
+            const fieldInputs = document.querySelectorAll('.field-input');
+            const fields = Array.from(fieldInputs)
+                .map(input => input.value.trim())
+                .filter(f => f.length > 0);
+
+            if (!folderPath) {
+                showError('Please enter a folder path');
+                return;
+            }
+
+            if (fields.length === 0) {
+                showError('Please add at least one field to extract');
+                return;
+            }
+
+            extractedFields = fields;
+            await extractData(folderPath, fields);
+        });
+
+        async function extractData(folderPath, fields) {
+            const loading = document.getElementById('loading');
+            const error = document.getElementById('error');
+            const results = document.getElementById('results');
+
+            loading.style.display = 'block';
+            error.classList.remove('show');
+            results.classList.remove('show');
+
+            try {
+                const response = await fetch('/extract', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        folder_path: folderPath,
+                        fields: fields
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Extraction failed');
+                }
+
+                extractedData = await response.json();
+                displayResults(extractedData, fields);
+                results.classList.add('show');
+
+            } catch (err) {
+                showError(err.message);
+            } finally {
+                loading.style.display = 'none';
+            }
+        }
+
+        function displayResults(data, fields) {
+            if (data.length === 0) {
+                showError('No documents found in the specified folder');
+                return;
+            }
+
+            // Build table header
+            const tableHeader = document.getElementById('tableHeader');
+            tableHeader.innerHTML = '';
+            tableHeader.innerHTML += '<th>#</th><th>File</th>';
+            fields.forEach(field => {
+                tableHeader.innerHTML += `<th>${field}</th>`;
+            });
+            tableHeader.innerHTML += '<th>Confidence</th>';
+
+            // Build table body
+            const tableBody = document.getElementById('tableBody');
+            tableBody.innerHTML = '';
+
+            let fullExtracted = 0;
+            let partialExtracted = 0;
+            let failedExtracted = 0;
+
+            data.forEach((row, index) => {
+                const tr = document.createElement('tr');
+                const confidence = row.confidence || 0;
+
+                if (confidence === 1.0) fullExtracted++;
+                else if (confidence > 0) partialExtracted++;
+                else failedExtracted++;
+
+                let statusClass = 'status-success';
+                if (confidence === 0) statusClass = 'status-failed';
+                else if (confidence < 1.0) statusClass = 'status-partial';
+
+                tr.innerHTML = `
+                    <td>${index + 1}</td>
+                    <td><strong>${row.file}</strong></td>
+                    ${fields.map(f => `<td>${row[f] || '—'}</td>`).join('')}
+                    <td><span class="status-badge ${statusClass} confidence">${Math.round(confidence * 100)}%</span></td>
+                `;
+                tableBody.appendChild(tr);
+            });
+
+            // Display stats
+            const statsDiv = document.getElementById('stats');
+            statsDiv.innerHTML = `
+                <div class="stat-box">
+                    <div class="stat-value">${data.length}</div>
+                    <div class="stat-label">Total Files</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value">${fullExtracted}</div>
+                    <div class="stat-label">100% Extracted</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value">${partialExtracted + failedExtracted}</div>
+                    <div class="stat-label">Incomplete</div>
+                </div>
+            `;
+        }
+
+        async function downloadExcel() {
+            try {
+                const response = await fetch('/export', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        data: extractedData,
+                        fields: extractedFields
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to export');
+                }
+
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'extracted_data.xlsx';
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+
+            } catch (err) {
+                showError('Failed to download Excel: ' + err.message);
+            }
+        }
+
+        function showError(message) {
+            const error = document.getElementById('error');
+            error.textContent = message;
+            error.classList.add('show');
+        }
+    </script>
+</body>
+</html>

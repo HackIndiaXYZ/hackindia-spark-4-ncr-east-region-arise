@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify, render_template, send_file
-from extractor import process_folder
-from exporter import export_to_excel
+from Extractor import process_folder
+from Exporter import export_to_excel
 
 app = Flask(__name__)
 
