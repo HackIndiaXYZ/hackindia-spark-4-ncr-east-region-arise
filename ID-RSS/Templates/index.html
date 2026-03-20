@@ -1500,8 +1500,41 @@ function dlExcel() {
 
 function openSheets() {
   if (!extractedData.length) { toast('Extract data first'); return; }
-  dlExcel();
-  setTimeout(() => window.open('https://sheets.new', '_blank'), 900);
+
+  // Send data to backend for CSV export
+  const payload = {
+    data: extractedData,
+    fields: activeFields
+  };
+
+  fetch('/export_sheets', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  })
+  .then(res => {
+    if (!res.ok) throw new Error('Export failed');
+    return res.blob();
+  })
+  .then(blob => {
+    // Create download link for CSV
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'extracted_data.csv';
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+
+    // Open Google Sheets with instructions
+    toast('CSV downloaded! Open Google Sheets and import the file');
+    setTimeout(() => window.open('https://sheets.new', '_blank'), 500);
+  })
+  .catch(err => {
+    console.error('Error:', err);
+    toast('Failed to export. Try downloading Excel instead');
+  });
 }
 
 /* ════════════════════════════

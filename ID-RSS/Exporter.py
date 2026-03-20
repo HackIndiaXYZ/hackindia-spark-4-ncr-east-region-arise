@@ -1,6 +1,8 @@
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment
 from datetime import datetime
+import csv
+import os
 
 
 def export_to_excel(data, fields, output_path="output.xlsx"):
@@ -85,6 +87,52 @@ def export_to_excel(data, fields, output_path="output.xlsx"):
 
     wb.save(output_path)
     return output_path
+
+
+def export_to_csv(data, fields, output_path="extracted_data.csv"):
+    """
+    Export extracted data to CSV format for Google Sheets import.
+
+    data   : list of dicts from extractor
+    fields : list of field names the user chose e.g. ["Name", "Serial No."]
+    output_path : path where CSV will be saved
+    Returns the path to the CSV file.
+    """
+    try:
+        with open(output_path, 'w', newline='', encoding='utf-8') as csvfile:
+            headers = ["File", "Format"] + fields + ["Confidence", "Status"]
+            writer = csv.DictWriter(csvfile, fieldnames=headers, extrasaction='ignore')
+
+            writer.writeheader()
+
+            for row in data:
+                row_data = {
+                    "File": row.get("file", ""),
+                    "Format": row.get("format", "—"),
+                    "Confidence": f"{int(row.get('confidence', 0) * 100)}%",
+                    "Status": "Complete" if row.get("confidence", 0) == 1.0 else "Partial" if row.get("confidence", 0) > 0 else "Failed"
+                }
+                # Add extracted fields
+                for field in fields:
+                    row_data[field] = row.get(field, "—")
+
+                writer.writerow(row_data)
+
+        return output_path
+    except Exception as e:
+        print(f"Error exporting to CSV: {e}")
+        return None
+
+
+def export_to_google_sheets(data, fields, sheet_title="ID-RSS Extraction Results"):
+    """
+    Generate a CSV export optimized for Google Sheets import.
+    Also returns a URL that can be used to auto-import the data.
+
+    For now, returns the CSV path. The frontend will handle uploading.
+    """
+    csv_path = export_to_csv(data, fields, output_path="sheets_export.csv")
+    return csv_path
 
 
 # ── Quick test ────────────────────────────────────────────────

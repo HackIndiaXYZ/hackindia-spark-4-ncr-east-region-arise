@@ -1,6 +1,5 @@
 import re
 import os
-import csv
 from docx import Document
 
 try:
@@ -126,66 +125,6 @@ def extract_from_pdf(filepath, fields):
     return result
 
 
-def extract_from_csv(filepath, fields):
-    """
-    Extracts data from CSV files.
-    For each field, searches in the data rows for matching values.
-    Handles both header-based lookups and pattern-based extraction.
-    """
-    try:
-        with open(filepath, 'r', encoding='utf-8') as file:
-            reader = csv.reader(file)
-            rows = list(reader)
-    except Exception as e:
-        result = {"file": os.path.basename(filepath), "format": "csv", "error": str(e)}
-        for f in fields:
-            result[f] = "—"
-        return result
-
-    result = {"file": os.path.basename(filepath), "format": "csv"}
-    found_count = 0
-
-    # Try to extract values from CSV
-    for field in fields:
-        value = "—"
-
-        # First, try to find field as a column header
-        if rows:
-            header_row = rows[0]
-            try:
-                col_index = -1
-                for i, header in enumerate(header_row):
-                    if header.strip().lower() == field.lower():
-                        col_index = i
-                        break
-
-                # If found as header, get value from first data row
-                if col_index >= 0 and len(rows) > 1:
-                    value = rows[1][col_index].strip() if col_index < len(rows[1]) else "—"
-                    if value:
-                        found_count += 1
-                        result[field] = value
-                        continue
-            except (IndexError, ValueError):
-                pass
-
-        # If not found as header, try pattern-based extraction
-        # Join all rows with delimiters suitable for pattern matching
-        text = ""
-        for row in rows:
-            text += " - ".join(row) + "\n"
-
-        extracted_value = extract_field(text, field)
-        if extracted_value != "—":
-            value = extracted_value
-            found_count += 1
-
-        result[field] = value
-
-    result["confidence"] = round(found_count / len(fields), 2) if fields else 0.0
-    return result
-
-
 def extract_from_txt(filepath, fields):
     """
     Extracts data from plain text files.
@@ -252,7 +191,7 @@ def extract_from_xlsx(filepath, fields):
 def process_folder(folder_path, fields):
     """
     Processes all supported document files in a folder.
-    Supports: .docx, .pdf, .xlsx, .csv, .txt
+    Supports: .docx, .pdf, .xlsx, .txt
     folder_path: string path to the folder
     fields: list of field label strings to extract
     Returns list of dicts, one per file.
@@ -265,11 +204,9 @@ def process_folder(folder_path, fields):
     # Supported file extensions with their handler functions
     handlers = {
         ".docx": extract_from_docx,
-        ".doc": extract_from_docx,
         ".pdf": extract_from_pdf,
         ".xlsx": extract_from_xlsx,
         ".xls": extract_from_xlsx,
-        ".csv": extract_from_csv,
         ".txt": extract_from_txt,
     }
 
