@@ -1,0 +1,10 @@
+Student Information Record
+
+Name- Arjun Patel
+Serial No.- STU-2024-0033
+Department- Information Technology
+Email: arjun@example.com
+Contact: 9876543210
+
+Additional Notes:
+This is a test student record in plain text format.

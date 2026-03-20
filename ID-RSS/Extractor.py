@@ -1,20 +1,50 @@
 import re
 import os
+import csv
 from docx import Document
+
+try:
+    import PyPDF2
+    PDF_AVAILABLE = True
+except ImportError:
+    PDF_AVAILABLE = False
+
+try:
+    import pdfplumber
+    PDFPLUMBER_AVAILABLE = True
+except ImportError:
+    PDFPLUMBER_AVAILABLE = False
+
+try:
+    import openpyxl
+    XLSX_AVAILABLE = True
+except ImportError:
+    XLSX_AVAILABLE = False
 
 
 def extract_field(text, label):
     """
-    Finds 'Label- Value' anywhere in text.
-    Captures everything after the dash until end of line.
-    Works for multi-word values like full names.
+    Enhanced field extraction supporting multiple delimiters:
+    - 'Label- Value'
+    - 'Label: Value'
+    - 'Label = Value'
+    - 'Label: Value' (with colon)
+    Works with multi-word values like full names.
     """
     escaped = re.escape(label)
-    # Match label followed by dash (with optional spaces) then capture rest of line
-    pattern = rf"{escaped}\s*-\s*(.+?)(?:\r?\n|$)"
-    match = re.search(pattern, text, re.IGNORECASE)
-    if match:
-        return match.group(1).strip()
+    # Try multiple delimiter patterns: dash, colon, equals, and space-separated
+    patterns = [
+        rf"{escaped}\s*[-–—]\s*(.+?)(?:\r?\n|$)",      # dash variants
+        rf"{escaped}\s*:\s*(.+?)(?:\r?\n|$)",           # colon
+        rf"{escaped}\s*=\s*(.+?)(?:\r?\n|$)",           # equals
+        rf"{escaped}\s+([^\n:=\-]+?)(?:\r?\n|$)",       # space-separated
+    ]
+
+    for pattern in patterns:
+        match = re.search(pattern, text, re.IGNORECASE)
+        if match:
+            return match.group(1).strip()
+
     return "—"
 
 
@@ -30,12 +60,12 @@ def extract_from_docx(filepath, fields):
         text = "\n".join([p.text for p in doc.paragraphs])
     except Exception as e:
         # If file can't be read, return empty result
-        result = {"file": os.path.basename(filepath), "error": str(e)}
+        result = {"file": os.path.basename(filepath), "error": str(e), "format": "docx"}
         for f in fields:
             result[f] = "—"
         return result
 
-    result = {"file": os.path.basename(filepath)}
+    result = {"file": os.path.basename(filepath), "format": "docx"}
 
     found_count = 0
     for field in fields:
@@ -50,9 +80,179 @@ def extract_from_docx(filepath, fields):
     return result
 
 
+def extract_from_pdf(filepath, fields):
+    """
+    Extracts text from PDF files using PyPDF2 or pdfplumber.
+    Falls back to text extraction if library available.
+    """
+    text = ""
+
+    try:
+        if PDFPLUMBER_AVAILABLE:
+            import pdfplumber
+            with pdfplumber.open(filepath) as pdf:
+                for page in pdf.pages:
+                    page_text = page.extract_text() or ""
+                    text += page_text + "\n"
+        elif PDF_AVAILABLE:
+            import PyPDF2
+            with open(filepath, 'rb') as file:
+                reader = PyPDF2.PdfReader(file)
+                for page in reader.pages:
+                    page_text = page.extract_text() or ""
+                    text += page_text + "\n"
+        else:
+            result = {"file": os.path.basename(filepath), "format": "pdf", "error": "PDF library not available"}
+            for f in fields:
+                result[f] = "—"
+            return result
+
+    except Exception as e:
+        result = {"file": os.path.basename(filepath), "format": "pdf", "error": str(e)}
+        for f in fields:
+            result[f] = "—"
+        return result
+
+    result = {"file": os.path.basename(filepath), "format": "pdf"}
+
+    found_count = 0
+    for field in fields:
+        value = extract_field(text, field)
+        result[field] = value
+        if value != "—":
+            found_count += 1
+
+    result["confidence"] = round(found_count / len(fields), 2) if fields else 0.0
+    return result
+
+
+def extract_from_csv(filepath, fields):
+    """
+    Extracts data from CSV files.
+    For each field, searches in the data rows for matching values.
+    Handles both header-based lookups and pattern-based extraction.
+    """
+    try:
+        with open(filepath, 'r', encoding='utf-8') as file:
+            reader = csv.reader(file)
+            rows = list(reader)
+    except Exception as e:
+        result = {"file": os.path.basename(filepath), "format": "csv", "error": str(e)}
+        for f in fields:
+            result[f] = "—"
+        return result
+
+    result = {"file": os.path.basename(filepath), "format": "csv"}
+    found_count = 0
+
+    # Try to extract values from CSV
+    for field in fields:
+        value = "—"
+
+        # First, try to find field as a column header
+        if rows:
+            header_row = rows[0]
+            try:
+                col_index = -1
+                for i, header in enumerate(header_row):
+                    if header.strip().lower() == field.lower():
+                        col_index = i
+                        break
+
+                # If found as header, get value from first data row
+                if col_index >= 0 and len(rows) > 1:
+                    value = rows[1][col_index].strip() if col_index < len(rows[1]) else "—"
+                    if value:
+                        found_count += 1
+                        result[field] = value
+                        continue
+            except (IndexError, ValueError):
+                pass
+
+        # If not found as header, try pattern-based extraction
+        # Join all rows with delimiters suitable for pattern matching
+        text = ""
+        for row in rows:
+            text += " - ".join(row) + "\n"
+
+        extracted_value = extract_field(text, field)
+        if extracted_value != "—":
+            value = extracted_value
+            found_count += 1
+
+        result[field] = value
+
+    result["confidence"] = round(found_count / len(fields), 2) if fields else 0.0
+    return result
+
+
+def extract_from_txt(filepath, fields):
+    """
+    Extracts data from plain text files.
+    """
+    try:
+        with open(filepath, 'r', encoding='utf-8') as file:
+            text = file.read()
+    except Exception as e:
+        result = {"file": os.path.basename(filepath), "format": "txt", "error": str(e)}
+        for f in fields:
+            result[f] = "—"
+        return result
+
+    result = {"file": os.path.basename(filepath), "format": "txt"}
+
+    found_count = 0
+    for field in fields:
+        value = extract_field(text, field)
+        result[field] = value
+        if value != "—":
+            found_count += 1
+
+    result["confidence"] = round(found_count / len(fields), 2) if fields else 0.0
+    return result
+
+
+def extract_from_xlsx(filepath, fields):
+    """
+    Extracts data from Excel files (.xlsx, .xls).
+    """
+    if not XLSX_AVAILABLE:
+        result = {"file": os.path.basename(filepath), "format": "xlsx", "error": "openpyxl not available"}
+        for f in fields:
+            result[f] = "—"
+        return result
+
+    try:
+        import openpyxl
+        wb = openpyxl.load_workbook(filepath)
+        text = ""
+        for sheet in wb.sheetnames:
+            ws = wb[sheet]
+            for row in ws.iter_rows(values_only=True):
+                text += " | ".join(str(cell) if cell is not None else "" for cell in row) + "\n"
+    except Exception as e:
+        result = {"file": os.path.basename(filepath), "format": "xlsx", "error": str(e)}
+        for f in fields:
+            result[f] = "—"
+        return result
+
+    result = {"file": os.path.basename(filepath), "format": "xlsx"}
+
+    found_count = 0
+    for field in fields:
+        value = extract_field(text, field)
+        result[field] = value
+        if value != "—":
+            found_count += 1
+
+    result["confidence"] = round(found_count / len(fields), 2) if fields else 0.0
+    return result
+
+
 def process_folder(folder_path, fields):
     """
-    Processes all .docx files in a folder.
+    Processes all supported document files in a folder.
+    Supports: .docx, .pdf, .xlsx, .csv, .txt
     folder_path: string path to the folder
     fields: list of field label strings to extract
     Returns list of dicts, one per file.
@@ -62,15 +262,36 @@ def process_folder(folder_path, fields):
     if not os.path.exists(folder_path):
         return []
 
+    # Supported file extensions with their handler functions
+    handlers = {
+        ".docx": extract_from_docx,
+        ".doc": extract_from_docx,
+        ".pdf": extract_from_pdf,
+        ".xlsx": extract_from_xlsx,
+        ".xls": extract_from_xlsx,
+        ".csv": extract_from_csv,
+        ".txt": extract_from_txt,
+    }
+
     files = sorted([
         f for f in os.listdir(folder_path)
-        if f.endswith(".docx")
+        if any(f.lower().endswith(ext) for ext in handlers.keys())
     ])
 
     for fname in files:
         filepath = os.path.join(folder_path, fname)
-        result = extract_from_docx(filepath, fields)
-        results.append(result)
+        # Get the file extension and find the appropriate handler
+        ext = os.path.splitext(fname)[1].lower()
+
+        if ext in handlers:
+            try:
+                result = handlers[ext](filepath, fields)
+                results.append(result)
+            except Exception as e:
+                result = {"file": fname, "format": ext[1:], "error": str(e), "confidence": 0.0}
+                for f in fields:
+                    result[f] = "—"
+                results.append(result)
 
     return results
 
