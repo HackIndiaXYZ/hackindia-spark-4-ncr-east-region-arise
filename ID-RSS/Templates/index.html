@@ -25,42 +25,42 @@
             background: white;
             border-radius: 12px;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            max-width: 600px;
-            width: 100%;
-            padding: 40px;
+            max-width: 1000px;
+            width: 95%;
+            padding: 50px;
         }
 
         h1 {
             color: #1d9e75;
-            margin-bottom: 10px;
-            font-size: 28px;
+            margin-bottom: 5px;
+            font-size: 32px;
         }
 
         .subtitle {
             color: #666;
-            margin-bottom: 30px;
-            font-size: 14px;
+            margin-bottom: 35px;
+            font-size: 15px;
         }
 
         .form-group {
-            margin-bottom: 20px;
+            margin-bottom: 25px;
         }
 
         label {
             display: block;
-            margin-bottom: 8px;
+            margin-bottom: 10px;
             color: #333;
             font-weight: 600;
-            font-size: 14px;
+            font-size: 15px;
         }
 
         input[type="text"],
         input[type="number"] {
             width: 100%;
-            padding: 12px;
+            padding: 13px;
             border: 2px solid #e0e0e0;
             border-radius: 6px;
-            font-size: 14px;
+            font-size: 15px;
             transition: border-color 0.3s;
         }
 
@@ -72,15 +72,15 @@
 
         .fields-container {
             background: #f5f5f5;
-            padding: 15px;
+            padding: 18px;
             border-radius: 6px;
-            margin-top: 8px;
+            margin-top: 10px;
         }
 
         .field-item {
             display: flex;
-            gap: 8px;
-            margin-bottom: 10px;
+            gap: 10px;
+            margin-bottom: 12px;
         }
 
         .field-item:last-child {
@@ -124,16 +124,16 @@
 
         .btn-primary {
             width: 100%;
-            padding: 14px;
+            padding: 16px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             border: none;
             border-radius: 6px;
-            font-size: 16px;
+            font-size: 17px;
             font-weight: 600;
             cursor: pointer;
             transition: transform 0.3s, box-shadow 0.3s;
-            margin-top: 20px;
+            margin-top: 25px;
         }
 
         .btn-primary:hover {
@@ -158,16 +158,23 @@
 
         .results h2 {
             color: #1d9e75;
-            margin-bottom: 15px;
+            margin-bottom: 8px;
             font-size: 18px;
+        }
+
+        .preview-note {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 15px;
+            font-style: italic;
         }
 
         .result-table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 13px;
-            margin-bottom: 15px;
-            max-height: 300px;
+            font-size: 14px;
+            margin-bottom: 20px;
+            max-height: 400px;
             overflow-y: auto;
             border: 1px solid #e0e0e0;
             border-radius: 4px;
@@ -176,7 +183,7 @@
         .result-table th {
             background: #1d9e75;
             color: white;
-            padding: 12px;
+            padding: 14px;
             text-align: left;
             font-weight: 600;
             position: sticky;
@@ -184,7 +191,7 @@
         }
 
         .result-table td {
-            padding: 12px;
+            padding: 14px;
             border-bottom: 1px solid #e0e0e0;
         }
 
@@ -228,11 +235,11 @@
             background: #51cf66;
             color: white;
             border: none;
-            padding: 10px 20px;
-            border-radius: 4px;
+            padding: 14px 24px;
+            border-radius: 6px;
             cursor: pointer;
-            font-size: 13px;
-            margin-top: 10px;
+            font-size: 15px;
+            margin-top: 15px;
             transition: background 0.3s;
             width: 100%;
         }
@@ -248,6 +255,7 @@
         }
 
         .spinner {
+            display: none;
             border: 3px solid #e0e0e0;
             border-top: 3px solid #667eea;
             border-radius: 50%;
@@ -278,27 +286,29 @@
         .stats {
             display: grid;
             grid-template-columns: 1fr 1fr 1fr;
-            gap: 12px;
-            margin-top: 15px;
-            font-size: 13px;
+            gap: 18px;
+            margin-top: 20px;
+            font-size: 14px;
         }
 
         .stat-box {
             background: #f5f5f5;
-            padding: 12px;
-            border-radius: 4px;
+            padding: 18px;
+            border-radius: 6px;
             text-align: center;
+            border: 1px solid #e0e0e0;
         }
 
         .stat-value {
-            font-size: 20px;
+            font-size: 28px;
             font-weight: 700;
             color: #667eea;
         }
 
         .stat-label {
             color: #666;
-            margin-top: 4px;
+            margin-top: 6px;
+            font-size: 14px;
         }
     </style>
 </head>
@@ -344,7 +354,8 @@
         </div>
 
         <div class="results" id="results">
-            <h2>✅ Extraction Results</h2>
+            <h2>✅ Extraction Preview</h2>
+            <div class="preview-note" id="previewNote"></div>
 
             <div class="stats" id="stats"></div>
 
@@ -372,10 +383,19 @@
                 <button type="button" class="btn-remove" onclick="removeField(this)">Remove</button>
             `;
             container.appendChild(fieldItem);
+            collapsePreview();
         }
 
         function removeField(btn) {
             btn.parentElement.remove();
+            collapsePreview();
+        }
+
+        function collapsePreview() {
+            const results = document.getElementById('results');
+            const error = document.getElementById('error');
+            results.classList.remove('show');
+            error.classList.remove('show');
         }
 
         document.getElementById('extractForm').addEventListener('submit', async (e) => {
@@ -390,7 +410,9 @@
             if (!folderPath) {
                 showError('Please enter a folder path');
                 return;
-            }
+           
+
+        document.getElementById('folderPath').addEventListener('change', collapsePreview); }
 
             if (fields.length === 0) {
                 showError('Please add at least one field to extract');
@@ -444,6 +466,10 @@
                 return;
             }
 
+            // Show only preview (divide total by 10, minimum 5)
+            const previewCount = Math.max(5, Math.ceil(data.length / 10));
+            const previewData = data.slice(0, previewCount);
+
             // Build table header
             const tableHeader = document.getElementById('tableHeader');
             tableHeader.innerHTML = '';
@@ -451,9 +477,8 @@
             fields.forEach(field => {
                 tableHeader.innerHTML += `<th>${field}</th>`;
             });
-            tableHeader.innerHTML += '<th>Confidence</th>';
 
-            // Build table body
+            // Build table body with preview data only
             const tableBody = document.getElementById('tableBody');
             tableBody.innerHTML = '';
 
@@ -461,13 +486,16 @@
             let partialExtracted = 0;
             let failedExtracted = 0;
 
-            data.forEach((row, index) => {
-                const tr = document.createElement('tr');
+            data.forEach((row) => {
                 const confidence = row.confidence || 0;
-
                 if (confidence === 1.0) fullExtracted++;
                 else if (confidence > 0) partialExtracted++;
                 else failedExtracted++;
+            });
+
+            previewData.forEach((row, index) => {
+                const tr = document.createElement('tr');
+                const confidence = row.confidence || 0;
 
                 let statusClass = 'status-success';
                 if (confidence === 0) statusClass = 'status-failed';
@@ -477,12 +505,15 @@
                     <td>${index + 1}</td>
                     <td><strong>${row.file}</strong></td>
                     ${fields.map(f => `<td>${row[f] || '—'}</td>`).join('')}
-                    <td><span class="status-badge ${statusClass} confidence">${Math.round(confidence * 100)}%</span></td>
                 `;
                 tableBody.appendChild(tr);
             });
 
-            // Display stats
+            // Display preview note
+            const previewNote = document.getElementById('previewNote');
+            previewNote.innerHTML = `📊 Showing ${previewCount} of ${data.length} files`;
+
+            // Display stats for ALL data
             const statsDiv = document.getElementById('stats');
             statsDiv.innerHTML = `
                 <div class="stat-box">
