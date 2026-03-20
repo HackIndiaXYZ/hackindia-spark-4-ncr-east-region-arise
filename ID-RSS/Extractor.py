@@ -72,26 +72,4 @@ def process_folder(folder_path, fields):
         result = extract_from_docx(filepath, fields)
         results.append(result)
 
-    return results
-
-
-# ── Quick test ────────────────────────────────────────────────
-if __name__ == "__main__":
-    import sys
-
-    folder = "demo_files"
-    fields = ["Name", "Serial No."]
-
-    print(f"Scanning: {folder}")
-    print(f"Fields:   {fields}\n")
-
-    results = process_folder(folder, fields)
-
-    for r in results:
-        print(f"{r['file']:<25}", end="")
-        for f in fields:
-            print(f"  {f}: {r[f]:<30}", end="")
-        print(f"  confidence: {r['confidence']}")
-
-    found = sum(1 for r in results if r["confidence"] == 1.0)
-    print(f"\n{found}/{len(results)} files fully extracted") 
+    return results 

@@ -653,8 +653,6 @@ td.td-dash { color: var(--ink4); font-style: italic; }
 }
 .btn-excel  { background: #1A7B4B; color: white; box-shadow: 0 2px 10px rgba(26,123,75,.2); }
 .btn-excel:hover  { background: #155E39; transform: translateY(-2px); box-shadow: 0 6px 18px rgba(26,123,75,.3); }
-.btn-sheets { background: var(--sur); color: var(--ink2); border: 1.5px solid var(--bdr); }
-.btn-sheets:hover { border-color: var(--grn); color: var(--grn); background: var(--mint); transform: translateY(-2px); }
 
 /* ══════════════════════════════
    TOAST
@@ -893,7 +891,6 @@ footer a:hover { text-decoration: underline; }
 
         <div class="export-row">
           <button class="btn-exp btn-excel"  onclick="dlExcel()">📊 Download Excel</button>
-          <button class="btn-exp btn-sheets" onclick="openSheets()">📋 Open Google Sheets</button>
         </div>
       </div>
 
@@ -901,6 +898,19 @@ footer a:hover { text-decoration: underline; }
     <!-- /results -->
 
   </main>
+
+  <!-- FILE VIEWER MODAL -->
+  <div id="viewer-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:9999;overflow:auto;padding:20px;backdrop-filter:blur(2px);">
+    <div style="background:white;max-width:95%;width:900px;margin:20px auto;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 24px;border-bottom:2px solid #eee;background:#f9f9f9;border-radius:12px 12px 0 0;">
+        <h3 id="viewer-title" style="margin:0;font-size:18px;font-weight:600;color:#1A1714;">📄 Document</h3>
+        <button onclick="closeViewer()" style="background:none;border:none;font-size:28px;cursor:pointer;color:#666;padding:0;width:40px;height:40px;display:flex;align-items:center;justify-content:center;">✕</button>
+      </div>
+      <div id="viewer-content" style="padding:24px;max-height:calc(90vh - 100px);overflow-y:auto;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;line-height:1.7;color:#333;background:#fafafa;">
+        <!-- Content will be inserted here -->
+      </div>
+    </div>
+  </div>
 
   <footer>
     Built with ♥ by
@@ -1374,7 +1384,7 @@ async function renderResults(rows, flds) {
     if (status === 'no-data') tr.style.backgroundColor = 'var(--rbg)';
 
     let cellsHtml = `<td>${i + 1}</td>` +
-      `<td class="td-file">${esc(row.file)}</td>`;
+      `<td class="td-file"><a href="javascript:openViewer('${esc(row.file).replace(/'/g, "\\'")}', ${i})" style="color:var(--grn);text-decoration:none;cursor:pointer;font-weight:500;">${esc(row.file)}</a></td>`;
 
     if (status === 'unsupported') {
       // Show red badge for all fields
@@ -1382,16 +1392,16 @@ async function renderResults(rows, flds) {
         `<td><span style="background:#fdecea;color:#c0392b;padding:2px 8px;border-radius:4px;font-size:0.75rem;font-weight:600;">📋 File type not supported</span></td>`
       ).join('');
     } else if (status === 'no-data') {
-      // Show orange badge for all fields
+      // Full failure: Show orange badge "Record not found" for all fields
       cellsHtml += flds.map(() => 
-        `<td><span style="background:#FEF6E4;color:#B8840A;padding:2px 8px;border-radius:4px;font-size:0.75rem;font-weight:600;">⚠️ Result not found</span></td>`
+        `<td><span style="background:#FEF6E4;color:#B8840A;padding:2px 8px;border-radius:4px;font-size:0.75rem;font-weight:600;">⚠️ Record not found</span></td>`
       ).join('');
     } else {
-      // Show normal values or orange badges for missing fields
+      // Partial failure or success: Show values, with field name for missing ones
       cellsHtml += flds.map(f => {
         const v = row[f] || '—';
         if (v === '—') {
-          return `<td><span style="background:#FEF6E4;color:#B8840A;padding:2px 8px;border-radius:4px;font-size:0.75rem;font-weight:600;">⚠️ ${esc(f)} Missing</span></td>`;
+          return `<td><span style="background:#FEF6E4;color:#B8840A;padding:2px 8px;border-radius:4px;font-size:0.75rem;font-weight:600;">⚠️ ${esc(f)} - Not Found</span></td>`;
         }
         return `<td>${esc(v)}</td>`;
       }).join('');
@@ -1519,11 +1529,7 @@ function dlExcel() {
   XLSX.writeFile(wb, 'ID-RSS_extracted.xlsx');
 }
 
-function openSheets() {
-  if (!extractedData.length) { toast('Extract data first'); return; }
-  dlExcel();
-  setTimeout(() => window.open('https://sheets.new', '_blank'), 900);
-}
+
 
 /* ════════════════════════════
    HELPERS
@@ -1568,6 +1574,53 @@ function flashInput(el) {
     el.style.boxShadow   = '';
   }, 900);
 }
+
+/* ════════════════════════════
+   FILE VIEWER
+════════════════════════════ */
+async function openViewer(filename, rowIdx) {
+  const modal = document.getElementById('viewer-modal');
+  const content = document.getElementById('viewer-content');
+  const title = document.getElementById('viewer-title');
+
+  title.textContent = `📄 ${filename}`;
+  content.innerHTML = '<p style="text-align:center;color:#999;">Loading document...</p>';
+  modal.style.display = 'block';
+
+  try {
+    const row = extractedData[rowIdx];
+    const highlightValues = activeFields
+      .map(f => row[f])
+      .filter(v => v && v !== '—');
+
+    const response = await fetch('/view-docx', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        filename: filename,
+        highlight: highlightValues
+      })
+    });
+
+    if (!response.ok) throw new Error('Failed to load document');
+    
+    const html = await response.text();
+    content.innerHTML = html;
+  } catch (err) {
+    content.innerHTML = `<p style="color:#c0392b;">Error loading document: ${esc(err.message)}</p>`;
+  }
+}
+
+function closeViewer() {
+  document.getElementById('viewer-modal').style.display = 'none';
+}
+
+// Close modal on background click
+document.addEventListener('click', (e) => {
+  const modal = document.getElementById('viewer-modal');
+  if (e.target === modal) closeViewer();
+});
 </script>
 </body>
 </html>
+y

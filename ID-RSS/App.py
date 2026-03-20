@@ -3,6 +3,8 @@ from Extractor import process_folder
 from Exporter import export_to_excel
 import os
 import traceback
+import re
+from docx import Document
 
 app = Flask(__name__)
 
@@ -100,6 +102,84 @@ def export():
     except Exception as e:
         app.logger.error(f"Export error: {traceback.format_exc()}")
         return jsonify({"error": f"Export failed: {str(e)}"}), 500
+
+@app.route("/view-docx", methods=["POST"])
+def view_docx():
+    try:
+        data = request.json
+        if not data:
+            return "Invalid request", 400
+        
+        filename = data.get("filename", "").strip()
+        highlight_values = data.get("highlight", [])
+        
+        # Find the file in demo_files
+        demo_path = os.path.join("demo_files", filename)
+        if not os.path.exists(demo_path):
+            return f"<p style='color:red;'>File not found: {filename}</p>", 404
+        
+        file_ext = filename.lower().split('.')[-1]
+        full_text = ""
+        
+        # Read based on file type - SHOW ALL CONTENT
+        if file_ext == 'docx':
+            doc = Document(demo_path)
+            # Get ALL paragraphs, don't filter empty ones
+            full_text = "\n".join([p.text for p in doc.paragraphs])
+        elif file_ext == 'txt':
+            with open(demo_path, 'r', encoding='utf-8') as f:
+                full_text = f.read()
+        else:
+            return f"<p style='color:orange;'>Unsupported file type: .{file_ext}</p>", 400
+        
+        # If file is empty, show message
+        if not full_text.strip():
+            return "<p style='color:#999;font-style:italic;'>File is empty or contains no readable text</p>", 200
+        
+        # Escape HTML
+        html_content = full_text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+        
+        # Highlight extracted values with case-insensitive matching
+        for value in highlight_values:
+            if value and value != "—":
+                escaped_val = value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+                # Create highlight HTML with strong visual indicator
+                highlight_html = f'<mark style="background:#FFF9E6;color:#B8840A;font-weight:700;padding:3px 5px;border-radius:3px;box-shadow:0 0 0 2px #B8840A;border:1px solid #B8840A;">{escaped_val}</mark>'
+                # Replace all occurrences (case-insensitive)
+                html_content = re.sub(
+                    rf'{re.escape(escaped_val)}',
+                    highlight_html,
+                    html_content,
+                    flags=re.IGNORECASE
+                )
+        
+        # Convert to formatted HTML with line breaks and padding
+        para_count = full_text.count('\n') + 1
+        char_count = len(full_text)
+        extracted_count = sum(1 for v in highlight_values if v and v != '—')
+        
+        # Build info box for file metadata
+        info_box = f"""
+        <div style="background:#E8F5EF;border-left:4px solid #1B6B53;padding:12px 16px;margin-bottom:20px;border-radius:4px;font-size:13px;color:#155E39;">
+            <strong>📋 File Info:</strong> {para_count} section{'s' if para_count != 1 else ''} • {char_count} characters
+            {f'<br><strong style="color:#B8840A;">✓ Extracted:</strong> {extracted_count} value(s) highlighted' if extracted_count > 0 else '<br><strong style="color:#999;">⚠️ No data extracted from this file</strong>'}
+        </div>
+        """
+        
+        html_output = f"""
+        <div style="font-size:15px;line-height:1.8;color:#333;white-space:pre-wrap;word-wrap:break-word;font-family:'Segoe UI',Tahoma,sans-serif;">
+            {info_box}
+            <div style="padding:16px;background:white;border-radius:4px;border:1px solid #E2DAD0;">
+                {html_content.replace(chr(10), '<br>')}
+            </div>
+        </div>
+        """
+        
+        return html_output, 200
+    
+    except Exception as e:
+        app.logger.error(f"Viewer error: {traceback.format_exc()}")
+        return f"<p style='color:red;'>Error loading file: {str(e)}</p>", 500
 
 @app.errorhandler(404)
 def not_found(error):

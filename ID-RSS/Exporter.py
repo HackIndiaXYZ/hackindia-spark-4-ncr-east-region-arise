@@ -80,17 +80,3 @@ def export_to_excel(data, fields, output_path="output.xlsx"):
 
     wb.save(output_path)
     return output_path
-
-
-# ── Quick test ────────────────────────────────────────────────
-if __name__ == "__main__":
-    test_data = [
-        {"file": "student_0001.docx", "Name": "Tanishk Bansal",
-         "Serial No.": "STU-2024-0001", "confidence": 1.0},
-        {"file": "student_0002.docx", "Name": "Priya Sharma",
-         "Serial No.": "STU-2024-0002", "confidence": 1.0},
-        {"file": "student_0003.docx", "Name": "Rahul Verma",
-         "Serial No.": "—",             "confidence": 0.5},
-    ]
-    path = export_to_excel(test_data, ["Name", "Serial No."])
-    print(f"Excel created: {path}")
