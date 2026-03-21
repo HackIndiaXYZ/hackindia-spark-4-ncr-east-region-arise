@@ -37,15 +37,6 @@ Two built-in safeguards ensure reliability at every step. A **confidence scoring
 
 ---
 
-## 🚀 Quick Start
-```bash
-pip install flask python-docx openpyxl
-python App.py
-# Open http://localhost:5000
-```
-
----
-
 ## 📁 Project Structure
 ```
 ID-RSS/
@@ -54,7 +45,7 @@ ID-RSS/
 ├── Exporter.py      # Styled Excel export
 ├── Templates/
 │   └── index.html   # Web UI (responsive, dark mode)
-└── demo_files/      # 30 sample DOCX files (mixed formats)
+└── demo_files/      # 30+ sample DOCX files (mixed formats)
 ```
 
 ---
