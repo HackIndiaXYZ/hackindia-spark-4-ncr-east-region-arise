@@ -6,7 +6,7 @@ import traceback
 import re
 from docx import Document
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder='Templates')
 
 @app.route("/")
 def index():
