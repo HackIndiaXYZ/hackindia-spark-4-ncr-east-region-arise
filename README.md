@@ -1,6 +1,6 @@
 # ID-RSS — Intelligent Document Retrieval & Structuring System
 
-[![Live Site](https://img.shields.io/badge/🌐%20Live%20Site-ID--RSS-1D9E75?style=for-the-badge)](https://ayushh-sharmaa.github.io/ARISE/)
+[![Live Site](https://img.shields.io/badge/🌐%20Live%20Site-ID--RSS-1D9E75?style=for-the-badge)](https://ayushh-sharmaa.github.io/ARISE/) [![PPT](https://img.shields.io/badge/📊%20PPT-Presentation-FF6B35?style=for-the-badge)](https://docs.google.com/presentation/d/e/2PACX-1vTgTjP2FyfAdBjtD6BMsynpAPmksl8ofK1Wt_REN3g5OkNuAL1TD3ULAhWaX6fbVr0A47TtzK3dBZK8/pub?start=false&loop=false&delayms=3000)
 
 ## 🎯 Problem Statement
 Organizations handle hundreds of student/employee documents (DOCX files) containing structured data scattered across paragraphs. Manual data extraction is slow, error-prone, and doesn't scale. **ID-RSS** automates this.
